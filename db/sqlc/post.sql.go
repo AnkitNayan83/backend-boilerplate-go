@@ -7,7 +7,53 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const createPost = `-- name: CreatePost :one
+INSERT INTO post (title, content, author_id, created_at, updated_at)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, title, content, author_id, created_at, updated_at
+`
+
+type CreatePostParams struct {
+	Title     string             `json:"title"`
+	Content   string             `json:"content"`
+	AuthorID  int32              `json:"author_id"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) CreatePost(ctx context.Context, arg CreatePostParams) (Post, error) {
+	row := q.db.QueryRow(ctx, createPost,
+		arg.Title,
+		arg.Content,
+		arg.AuthorID,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+	)
+	var i Post
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Content,
+		&i.AuthorID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const deletePostByID = `-- name: DeletePostByID :exec
+DELETE FROM post
+WHERE id = $1
+`
+
+func (q *Queries) DeletePostByID(ctx context.Context, id int32) error {
+	_, err := q.db.Exec(ctx, deletePostByID, id)
+	return err
+}
 
 const getPostByID = `-- name: GetPostByID :one
 SELECT id, title, content, author_id, created_at, updated_at
@@ -17,6 +63,82 @@ WHERE id = $1
 
 func (q *Queries) GetPostByID(ctx context.Context, id int32) (Post, error) {
 	row := q.db.QueryRow(ctx, getPostByID, id)
+	var i Post
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Content,
+		&i.AuthorID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const listPosts = `-- name: ListPosts :many
+SELECT id, title, content, author_id, created_at, updated_at
+FROM post
+ORDER BY created_at DESC
+LIMIT $1 OFFSET $2
+`
+
+type ListPostsParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+func (q *Queries) ListPosts(ctx context.Context, arg ListPostsParams) ([]Post, error) {
+	rows, err := q.db.Query(ctx, listPosts, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Post{}
+	for rows.Next() {
+		var i Post
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Content,
+			&i.AuthorID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updatePostByID = `-- name: UpdatePostByID :one
+UPDATE post
+SET
+    title = COALESCE($1, title),
+    content = COALESCE($2, content),
+    author_id = COALESCE($3, author_id),
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = $4
+RETURNING id, title, content, author_id, created_at, updated_at
+`
+
+type UpdatePostByIDParams struct {
+	Title    pgtype.Text `json:"title"`
+	Content  pgtype.Text `json:"content"`
+	AuthorID pgtype.Int4 `json:"author_id"`
+	ID       pgtype.Int4 `json:"id"`
+}
+
+func (q *Queries) UpdatePostByID(ctx context.Context, arg UpdatePostByIDParams) (Post, error) {
+	row := q.db.QueryRow(ctx, updatePostByID,
+		arg.Title,
+		arg.Content,
+		arg.AuthorID,
+		arg.ID,
+	)
 	var i Post
 	err := row.Scan(
 		&i.ID,
