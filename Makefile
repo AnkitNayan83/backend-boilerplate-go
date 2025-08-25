@@ -35,5 +35,8 @@ sqlc:
 server:
 	go run main.go
 
+test:
+	go test -v -cover ./...
+
 
 .PHONY: postgresconsole postgresrun postgresstart postgresstop createdb dropdb newmigration migrateup migrateupone migratedown migratedownone server sqlc

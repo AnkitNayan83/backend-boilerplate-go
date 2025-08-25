@@ -69,7 +69,3 @@ To set up the development environment:
 3. Run migrations with `go run cmd/migrate/main.go up`
 4. Generate SQL code with `sqlc generate`
 5. Start developing your application
-
-## License
-
-[MIT](LICENSE)
