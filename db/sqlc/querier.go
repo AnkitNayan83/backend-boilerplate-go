@@ -14,6 +14,7 @@ type Querier interface {
 	DeletePostByID(ctx context.Context, id int32) error
 	DeleteUserByID(ctx context.Context, id int32) error
 	GetPostByID(ctx context.Context, id int32) (Post, error)
+	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id int32) (GetUserByIDRow, error)
 	ListPosts(ctx context.Context, arg ListPostsParams) ([]Post, error)
 	UpdatePostByID(ctx context.Context, arg UpdatePostByIDParams) (Post, error)
